@@ -110,8 +110,12 @@ export class Engine {
     if (!parsed.textQuery) return []
     const options: SearchOptions = {
       combineWith: 'AND',
+      // The word being typed (last term) always prefix-matches, but never
+      // below 2 chars: a 1-char prefix expands to a huge slice of the index
+      // on every keystroke.
       prefix: (term, index, terms) =>
-        term.length >= fuzzy.prefixMinLength || index === terms.length - 1,
+        term.length >= fuzzy.prefixMinLength ||
+        (index === terms.length - 1 && term.length >= 2),
       fuzzy: term =>
         term.length < fuzzy.minFuzzyLength ? false : fuzzy.fuzziness,
       boost: FIELD_BOOSTS,

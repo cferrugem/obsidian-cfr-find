@@ -1,6 +1,6 @@
 {
   "name": "obsidian-cfr-find",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Fast, worker-powered vault search plugin for Obsidian. Inspired by Omnisearch.",
   "main": "dist/main.js",
   "scripts": {

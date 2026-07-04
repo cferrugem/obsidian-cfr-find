@@ -15,6 +15,7 @@ import { parseQuery } from '../../shared/query-parser'
 import { renderExcerpt, renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
 import { InFileSearchModal } from './infile-modal'
+import { jumpToMatch } from './jump'
 
 const DEBOUNCE_MS = 80
 const RESULT_LIMIT = 50
@@ -290,32 +291,8 @@ export class VaultSearchModal extends Modal {
       )
     }
     if (offsets.length) {
-      await this.performJumpToMatch(view, offsets[0].start, offsets[0].length)
+      await jumpToMatch(view, offsets[0].start, offsets[0].length)
     }
-  }
-
-  private async performJumpToMatch(
-    view: MarkdownView,
-    start: number,
-    length: number
-  ): Promise<void> {
-    if (view.getMode() === 'preview') {
-      await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    const editor = view.editor
-    const from = editor.offsetToPos(start)
-    const to = editor.offsetToPos(start + length)
-    editor.setSelection(from, to)
-    editor.scrollIntoView({ from, to }, true)
-    setTimeout(() => {
-      try {
-        editor.setSelection(from, to)
-        editor.scrollIntoView({ from, to }, true)
-      } catch (e) {
-        // Ignore if view was closed
-      }
-    }, 100)
   }
 
   /**

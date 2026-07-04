@@ -161,3 +161,26 @@ describe('pickExcerptOffsets', () => {
     expect(picked.length).toBeGreaterThanOrEqual(2)
   })
 })
+
+describe('findApproxPhraseInSpans — typed-word leniency', () => {
+  it('anchors on the phrase while the last word is still being typed', () => {
+    // The user has typed "recuperação de ar" — "ar" is the word in progress.
+    const text = 'O plugin core Recuperação de arquivos mantém snapshots.'
+    const spans = tokenizeWithSpans(text, true)
+    const offsets = findApproxPhraseInSpans(spans, 'recuperação de ar')
+    expect(offsets).toHaveLength(1)
+    expect(
+      text.slice(offsets[0].start, offsets[0].start + offsets[0].length)
+    ).toBe('Recuperação de arquivos')
+  })
+
+  it('keeps middle stopwords exact (no "de" → "desktop" anchoring)', () => {
+    const spans = tokenizeWithSpans(
+      'recuperação desktop arquivos aqui',
+      true
+    )
+    expect(findApproxPhraseInSpans(spans, 'recuperação de arquivos')).toEqual(
+      []
+    )
+  })
+})

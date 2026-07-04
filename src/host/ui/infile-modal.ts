@@ -11,6 +11,7 @@ import {
 import { renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
 import { CFR_FIND_ICON } from './icon'
+import { jumpToMatch } from './jump'
 
 const DEBOUNCE_MS = 60
 const MAX_MATCHES = 2000
@@ -244,31 +245,7 @@ export class InFileSearchModal extends Modal {
     }
     if (!view || view.file?.path !== file.path) return
 
-    await this.performJumpToMatch(view, target.start, target.length)
-  }
-
-  private async performJumpToMatch(
-    view: MarkdownView,
-    start: number,
-    length: number
-  ): Promise<void> {
-    if (view.getMode() === 'preview') {
-      await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    const editor = view.editor
-    const from = editor.offsetToPos(start)
-    const to = editor.offsetToPos(start + length)
-    editor.setSelection(from, to)
-    editor.scrollIntoView({ from, to }, true)
-    setTimeout(() => {
-      try {
-        editor.setSelection(from, to)
-        editor.scrollIntoView({ from, to }, true)
-      } catch (e) {
-        // Ignore if view was closed
-      }
-    }, 100)
+    await jumpToMatch(view, target.start, target.length)
   }
 
   private switchToVault(): void {
