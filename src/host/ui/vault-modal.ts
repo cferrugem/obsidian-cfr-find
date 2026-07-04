@@ -24,7 +24,7 @@ export class VaultSearchModal extends Modal {
   private inputEl!: HTMLInputElement
   private list!: ResultList<SearchHit>
   private currentSearchId = 0
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null
+  private debounceTimer: number | null = null
   private observer: IntersectionObserver | null = null
   private syncPromise: Promise<void> = Promise.resolve()
 
@@ -53,7 +53,9 @@ export class VaultSearchModal extends Modal {
     this.list = new ResultList<SearchHit>(
       resultsEl,
       (hit, el) => this.renderHit(hit, el),
-      (hit, ev) => this.openHit(hit, ev.ctrlKey || ev.metaKey)
+      (hit, ev) => {
+        void this.openHit(hit, ev.ctrlKey || ev.metaKey)
+      }
     )
 
     const footer = this.contentEl.createDiv({ cls: 'cfr-find-footer' })
@@ -81,7 +83,7 @@ export class VaultSearchModal extends Modal {
   }
 
   onClose(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
     this.observer?.disconnect()
     this.contentEl.empty()
   }
@@ -104,7 +106,7 @@ export class VaultSearchModal extends Modal {
     this.scope.register(['Mod'], 'Enter', e => {
       e.preventDefault()
       const hit = this.list.selectedItem
-      if (hit) this.openHit(hit, true)
+      if (hit) void this.openHit(hit, true)
     })
     this.scope.register([], 'Tab', e => {
       e.preventDefault()
@@ -113,8 +115,10 @@ export class VaultSearchModal extends Modal {
   }
 
   private scheduleUpdate(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
-    this.debounceTimer = setTimeout(() => this.updateResults(), DEBOUNCE_MS)
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
+    this.debounceTimer = window.setTimeout(() => {
+      void this.updateResults()
+    }, DEBOUNCE_MS)
   }
 
   private async updateResults(): Promise<void> {
@@ -239,7 +243,7 @@ export class VaultSearchModal extends Modal {
     if (!path) return
     const file = this.app.vault.getFileByPath(path)
     if (!file) return
-    const terms: string[] = JSON.parse(el.dataset.terms ?? '[]')
+    const terms = JSON.parse(el.dataset.terms ?? '[]') as string[]
     const query = el.dataset.query ?? ''
     const raw = await this.app.vault.cachedRead(file)
     const content = raw.replace(/\r\n/g, '\n')

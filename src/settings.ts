@@ -124,7 +124,7 @@ export class CfrFindSettingTab extends PluginSettingTab {
         slider
           .setLimits(3, 6, 1)
           .setValue(this.plugin.settings.minFuzzyLength)
-          .setDynamicTooltip()
+
           .onChange(async value => {
             this.plugin.settings.minFuzzyLength = value
             await this.plugin.saveSettings()
@@ -141,7 +141,7 @@ export class CfrFindSettingTab extends PluginSettingTab {
         slider
           .setLimits(1, 3, 1)
           .setValue(this.plugin.settings.prefixMinLength)
-          .setDynamicTooltip()
+
           .onChange(async value => {
             this.plugin.settings.prefixMinLength = value
             await this.plugin.saveSettings()
@@ -284,7 +284,7 @@ export class CfrFindSettingTab extends PluginSettingTab {
       .addButton(button =>
         button
           .setButtonText('Rebuild')
-          .setWarning()
+          .setDestructive()
           .onClick(async () => {
             await this.plugin.clearCacheAndRebuild()
             new Notice('CFR Find: index rebuilt')

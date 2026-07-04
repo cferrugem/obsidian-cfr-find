@@ -89,7 +89,7 @@ export class WorkerClient {
     const id = this.nextId++
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
-      this.post({ ...msg, id } as WorkerRequest)
+      this.post({ ...msg, id })
     })
   }
 

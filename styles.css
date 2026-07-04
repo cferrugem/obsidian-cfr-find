@@ -75,7 +75,6 @@
   height: 55vh;
   overflow-y: auto;
   padding: 4px 12px;
-  scrollbar-width: thin;
 }
 
 /* ---- Individual Result Row ---- */

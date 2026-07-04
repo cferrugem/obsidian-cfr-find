@@ -6,7 +6,6 @@ import {
   matchSpansDetailed,
   MatchOffset,
   significantTerms,
-  TermMatch,
 } from '../../shared/matcher'
 import { renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
@@ -38,7 +37,7 @@ interface LineMatch {
 export class InFileSearchModal extends Modal {
   private inputEl!: HTMLInputElement
   private list!: ResultList<LineMatch>
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null
+  private debounceTimer: number | null = null
   // Content is tokenized ONCE on open; each keystroke only re-matches
   // the cached spans, so typing stays O(tokens) with zero re-tokenization.
   private spans: TokenSpan[] = []
@@ -82,7 +81,9 @@ export class InFileSearchModal extends Modal {
     this.list = new ResultList<LineMatch>(
       resultsEl,
       (m, el) => this.renderMatch(m, el),
-      m => this.jumpTo(m)
+      m => {
+        void this.jumpTo(m)
+      }
     )
 
     const footer = this.contentEl.createDiv({ cls: 'cfr-find-footer' })
@@ -116,7 +117,7 @@ export class InFileSearchModal extends Modal {
 
     this.spans = tokenizeWithSpans(content, this.plugin.settings.splitCamelCase)
     this.lines = content.split('\n')
-    this.lineStarts = new Array(this.lines.length)
+    this.lineStarts = new Array<number>(this.lines.length)
     let pos = 0
     for (let i = 0; i < this.lines.length; i++) {
       this.lineStarts[i] = pos
@@ -126,7 +127,7 @@ export class InFileSearchModal extends Modal {
   }
 
   onClose(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
     this.spans = []
     this.lines = []
     this.contentEl.empty()
@@ -158,8 +159,8 @@ export class InFileSearchModal extends Modal {
   }
 
   private scheduleUpdate(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
-    this.debounceTimer = setTimeout(() => this.updateResults(), DEBOUNCE_MS)
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
+    this.debounceTimer = window.setTimeout(() => this.updateResults(), DEBOUNCE_MS)
   }
 
   /**

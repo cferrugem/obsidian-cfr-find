@@ -16,7 +16,7 @@ export default class CfrFindPlugin extends Plugin {
   client: WorkerClient | null = null
   indexer: Indexer | null = null
   private statusBarEl: HTMLElement | null = null
-  private restartTimer: ReturnType<typeof setTimeout> | null = null
+  private restartTimer: number | null = null
 
   async onload(): Promise<void> {
     await this.loadSettings()
@@ -73,7 +73,7 @@ export default class CfrFindPlugin extends Plugin {
   }
 
   onunload(): void {
-    if (this.restartTimer) clearTimeout(this.restartTimer)
+    if (this.restartTimer) window.clearTimeout(this.restartTimer)
     this.stopEngine(true)
   }
 
@@ -128,8 +128,8 @@ export default class CfrFindPlugin extends Plugin {
    * scratch on init).
    */
   scheduleEngineRestart(): void {
-    if (this.restartTimer) clearTimeout(this.restartTimer)
-    this.restartTimer = setTimeout(() => {
+    if (this.restartTimer) window.clearTimeout(this.restartTimer)
+    this.restartTimer = window.setTimeout(() => {
       this.restartTimer = null
       this.stopEngine(false)
       this.startEngine().catch(console.error)
@@ -152,7 +152,8 @@ export default class CfrFindPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+    const stored = (await this.loadData()) as Partial<CfrFindSettings> | null
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, stored)
   }
 
   async saveSettings(): Promise<void> {

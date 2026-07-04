@@ -22,8 +22,8 @@ export interface TermMatch extends MatchOffset {
 }
 
 function editDistance(a: string, b: string): number {
-  const dp = Array.from({ length: a.length + 1 }, () =>
-    Array(b.length + 1).fill(0)
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0)
   )
   for (let i = 0; i <= a.length; i++) dp[i][0] = i
   for (let j = 0; j <= b.length; j++) dp[0][j] = j
@@ -106,14 +106,6 @@ function matchedTerm(
   return null
 }
 
-function spanMatches(
-  span: TokenSpan,
-  termSet: Set<string>,
-  prefixTerms: string[]
-): boolean {
-  return matchedTerm(span, termSet, prefixTerms) !== null
-}
-
 /** Offsets of tokens matching any of the given normalized terms. */
 export function findTermOffsets(
   text: string,
@@ -129,7 +121,7 @@ export function findTermOffsets(
     const raw = m[0]
     if (raw.length > 64) continue
     const span: TokenSpan = {
-      start: m.index!,
+      start: m.index ?? 0,
       length: raw.length,
       variants: tokenVariants(raw, splitCamelCase),
     }

@@ -86,7 +86,7 @@ export function tokenizeWithSpans(
     const raw = m[0]
     if (raw.length > MAX_TOKEN_LEN || !HAS_ALNUM_RE.test(raw)) continue
     spans.push({
-      start: m.index!,
+      start: m.index ?? 0,
       length: raw.length,
       variants: tokenVariants(raw, splitCamelCase),
     })

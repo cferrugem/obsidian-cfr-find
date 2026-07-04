@@ -19,7 +19,7 @@ import { Cache } from './cache'
 const ADD_CHUNK = 200
 const PERSIST_DEBOUNCE_MS = 60_000
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+const sleep = (ms: number) => new Promise(r => self.setTimeout(r, ms))
 
 export function createCore(post: (msg: WorkerResponse) => void) {
   let engine: Engine | null = null
@@ -28,7 +28,7 @@ export function createCore(post: (msg: WorkerResponse) => void) {
   let optionsHash = ''
   let splitCamelCase = true
   let latestSearchId = 0
-  let persistTimer: ReturnType<typeof setTimeout> | null = null
+  let persistTimer: number | null = null
   let queue: Promise<void> = Promise.resolve()
 
   async function persist(): Promise<void> {
@@ -41,8 +41,8 @@ export function createCore(post: (msg: WorkerResponse) => void) {
 
   function schedulePersist(): void {
     if (!useCache) return
-    if (persistTimer) clearTimeout(persistTimer)
-    persistTimer = setTimeout(() => {
+    if (persistTimer) self.clearTimeout(persistTimer)
+    persistTimer = self.setTimeout(() => {
       persistTimer = null
       queue = queue.then(() => persist()).catch(() => {})
     }, PERSIST_DEBOUNCE_MS)
@@ -105,7 +105,7 @@ export function createCore(post: (msg: WorkerResponse) => void) {
       }
       case 'persist': {
         if (persistTimer) {
-          clearTimeout(persistTimer)
+          self.clearTimeout(persistTimer)
           persistTimer = null
         }
         await persist()

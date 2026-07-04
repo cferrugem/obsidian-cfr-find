@@ -28,7 +28,7 @@ const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'])
 const OFFICE_EXTS = new Set(['docx', 'xlsx'])
 
 export class Indexer {
-  private dirtyTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private dirtyTimers = new Map<string, number>()
   private ignoreFilters: (string | RegExp)[] = []
   /** Local mirror of what the worker has indexed: path → mtime. */
   private known = new Map<string, number>()
@@ -217,7 +217,7 @@ export class Indexer {
     this.cancelDirty(file.path)
     this.dirtyTimers.set(
       file.path,
-      setTimeout(() => {
+      window.setTimeout(() => {
         this.dirtyTimers.delete(file.path)
         this.reindexNow(file).catch(console.error)
       }, MODIFY_DEBOUNCE_MS)
@@ -232,7 +232,7 @@ export class Indexer {
    * nothing changed: one map diff, no file reads.
    */
   async syncBeforeSearch(): Promise<void> {
-    for (const [, timer] of this.dirtyTimers) clearTimeout(timer)
+    for (const [, timer] of this.dirtyTimers) window.clearTimeout(timer)
     this.dirtyTimers.clear()
 
     const files = this.collectIndexableFiles()
@@ -259,7 +259,7 @@ export class Indexer {
   private cancelDirty(path: string): void {
     const timer = this.dirtyTimers.get(path)
     if (timer) {
-      clearTimeout(timer)
+      window.clearTimeout(timer)
       this.dirtyTimers.delete(path)
     }
   }
@@ -271,7 +271,7 @@ export class Indexer {
   }
 
   stop(): void {
-    for (const [, timer] of this.dirtyTimers) clearTimeout(timer)
+    for (const [, timer] of this.dirtyTimers) window.clearTimeout(timer)
     this.dirtyTimers.clear()
   }
 }

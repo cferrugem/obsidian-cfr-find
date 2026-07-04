@@ -100,6 +100,14 @@ single file). The main thread only reads files and renders UI; file contents
 are posted to the worker and never kept resident. See `src/shared/protocol.ts`
 for the full message contract.
 
+## Privacy and network use
+
+CFR Find makes **no network requests**. All indexing and searching happens
+locally on your device; the index is stored locally in IndexedDB. The only
+external link in the plugin is the optional "Buy me a coffee" button in the
+settings tab, which opens `buymeacoffee.com` in your browser **only if you
+click it**.
+
 ## Support
 
 If CFR Find is useful to you, you can

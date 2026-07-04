@@ -19,7 +19,7 @@ export function renderHighlighted(
     const s = start - base
     const e = s + length
     if (s < cursor || s >= text.length) continue
-    if (s > cursor) el.appendChild(document.createTextNode(text.slice(cursor, s)))
+    if (s > cursor) el.appendText(text.slice(cursor, s))
     el.createEl('mark', {
       cls: 'cfr-find-highlight',
       text: text.slice(s, Math.min(e, text.length)),
@@ -27,7 +27,7 @@ export function renderHighlighted(
     cursor = Math.min(e, text.length)
   }
   if (cursor < text.length) {
-    el.appendChild(document.createTextNode(text.slice(cursor)))
+    el.appendText(text.slice(cursor))
   }
 }
 
@@ -39,8 +39,7 @@ export function renderExcerpt(
 ): void {
   el.empty()
   if (!offsets.length) {
-    const flat = content.slice(0, EXCERPT_RADIUS * 2).replace(/\s+/g, ' ')
-    el.appendChild(document.createTextNode(flat))
+    el.appendText(content.slice(0, EXCERPT_RADIUS * 2).replace(/\s+/g, ' '))
     return
   }
   const first = offsets[0]
@@ -55,7 +54,7 @@ export function renderExcerpt(
   // would shift every highlight offset after them (mid-word marks).
   const windowText = content.slice(from, to).replace(/[\r\n]/g, ' ')
   const visible = offsets.filter(o => o.start >= from && o.start < to)
-  if (from > 0) el.appendChild(document.createTextNode('…'))
+  if (from > 0) el.appendText('…')
   renderHighlighted(el, windowText, visible, from)
-  if (to < content.length) el.appendChild(document.createTextNode('…'))
+  if (to < content.length) el.appendText('…')
 }

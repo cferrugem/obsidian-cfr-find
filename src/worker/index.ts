@@ -3,7 +3,9 @@
 import { createCore } from './core'
 import { WorkerRequest } from '../shared/protocol'
 
-const ctx = globalThis as unknown as {
+// `self` is the worker's global scope (this file only runs inside a Worker;
+// the main-thread fallback imports createCore directly).
+const ctx = self as unknown as {
   postMessage: (msg: unknown) => void
   addEventListener: (
     type: 'message',

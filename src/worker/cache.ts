@@ -19,10 +19,15 @@ export interface CacheMeta {
 
 const STORE = 'cache'
 
+/** Rejections are always Error instances (IDB errors can be null). */
+function asError(e: DOMException | null, fallback: string): Error {
+  return e ?? new Error(fallback)
+}
+
 function req<T>(r: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     r.onsuccess = () => resolve(r.result)
-    r.onerror = () => reject(r.error)
+    r.onerror = () => reject(asError(r.error, 'IndexedDB request failed'))
   })
 }
 
@@ -38,7 +43,8 @@ export class Cache {
         }
       }
       open.onsuccess = () => resolve(open.result)
-      open.onerror = () => reject(open.error)
+      open.onerror = () =>
+        reject(asError(open.error, 'IndexedDB open failed'))
     })
   }
 
@@ -49,16 +55,12 @@ export class Cache {
   }> {
     if (!this.db) return {}
     const store = this.db.transaction(STORE, 'readonly').objectStore(STORE)
-    const [index, manifest, meta] = await Promise.all([
-      req(store.get('index')),
-      req(store.get('manifest')),
-      req(store.get('meta')),
-    ])
-    return {
-      index: index as string | undefined,
-      manifest: manifest as IndexedEntry[] | undefined,
-      meta: meta as CacheMeta | undefined,
-    }
+    const [index, manifest, meta] = (await Promise.all([
+      req(store.get('index') as IDBRequest<unknown>),
+      req(store.get('manifest') as IDBRequest<unknown>),
+      req(store.get('meta') as IDBRequest<unknown>),
+    ])) as [string?, IndexedEntry[]?, CacheMeta?]
+    return { index, manifest, meta }
   }
 
   async write(
@@ -74,8 +76,8 @@ export class Cache {
       store.put(manifest, 'manifest')
       store.put(meta, 'meta')
       tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-      tx.onabort = () => reject(tx.error)
+      tx.onerror = () => reject(asError(tx.error, 'IndexedDB write failed'))
+      tx.onabort = () => reject(asError(tx.error, 'IndexedDB write aborted'))
     })
   }
 
@@ -85,7 +87,7 @@ export class Cache {
       const tx = this.db!.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).clear()
       tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
+      tx.onerror = () => reject(asError(tx.error, 'IndexedDB clear failed'))
     })
   }
 }

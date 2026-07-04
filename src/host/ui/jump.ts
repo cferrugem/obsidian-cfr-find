@@ -15,14 +15,14 @@ export async function jumpToMatch(
 ): Promise<void> {
   if (view.getMode() === 'preview') {
     await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await new Promise(resolve => window.setTimeout(resolve, 50))
   }
   const editor = view.editor
   const from = editor.offsetToPos(start)
   const to = editor.offsetToPos(start + length)
   editor.setSelection(from, to)
   editor.scrollIntoView({ from, to }, true)
-  setTimeout(() => {
+  window.setTimeout(() => {
     try {
       editor.setSelection(from, to)
       editor.scrollIntoView({ from, to }, true)
