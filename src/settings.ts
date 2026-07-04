@@ -281,15 +281,17 @@ export class CfrFindSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Clear cache and rebuild index')
-      .addButton(button =>
-        button
-          .setButtonText('Rebuild')
-          .setDestructive()
-          .onClick(async () => {
-            await this.plugin.clearCacheAndRebuild()
-            new Notice('CFR Find: index rebuilt')
-          })
-      )
+      .addButton(button => {
+        button.setButtonText('Rebuild').onClick(async () => {
+          await this.plugin.clearCacheAndRebuild()
+          new Notice('CFR Find: index rebuilt')
+        })
+        // Destructive styling via the CSS class both old and new Obsidian
+        // versions understand: setWarning() is deprecated and
+        // setDestructive() does not exist before ~1.9, but our
+        // minAppVersion is 1.5.7.
+        button.buttonEl.addClass('mod-warning')
+      })
 
     // ---- About ----
     new Setting(containerEl).setName('About').setHeading()
