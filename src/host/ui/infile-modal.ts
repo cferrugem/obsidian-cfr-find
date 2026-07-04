@@ -1,10 +1,10 @@
-import { MarkdownView, Modal, setIcon } from 'obsidian'
-import { CFR_FIND_ICON } from './icon'
+import { MarkdownView, Modal, setIcon, TFile } from 'obsidian'
 import type CfrFindPlugin from '../../main'
 import { tokenize, tokenizeWithSpans, TokenSpan } from '../../shared/tokenizer'
 import { matchSpans, MatchOffset } from '../../shared/matcher'
 import { renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
+import { CFR_FIND_ICON } from './icon'
 
 const DEBOUNCE_MS = 60
 const MAX_MATCHES = 500
@@ -16,6 +16,12 @@ interface LineMatch {
   lineText: string
 }
 
+/**
+ * Searches inside ONE note: the given target file (drill-down from a vault
+ * search result — the file does not need to be open) or the active note.
+ * Enter opens the note at the selected match. Tab/Shift+Tab returns to the
+ * vault search, carrying the query.
+ */
 export class InFileSearchModal extends Modal {
   private inputEl!: HTMLInputElement
   private list!: ResultList<LineMatch>
@@ -25,11 +31,12 @@ export class InFileSearchModal extends Modal {
   private spans: TokenSpan[] = []
   private lineStarts: number[] = []
   private lines: string[] = []
-  private view: MarkdownView | null = null
+  private file: TFile | null = null
 
   constructor(
     private plugin: CfrFindPlugin,
-    private initialQuery = ''
+    private initialQuery = '',
+    private targetFile?: TFile
   ) {
     super(plugin.app)
   }
@@ -38,26 +45,14 @@ export class InFileSearchModal extends Modal {
     this.modalEl.addClass('cfr-find-modal')
     this.contentEl.empty()
 
-    this.view = this.app.workspace.getActiveViewOfType(MarkdownView)
-    if (!this.view) {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView)
+    this.file = this.targetFile ?? activeView?.file ?? null
+    if (!this.file) {
       this.contentEl.createDiv({
         cls: 'cfr-find-empty',
-        text: 'Open a note to search inside it.',
+        text: 'Open a note (or pick a result with Tab) to search inside it.',
       })
       return
-    }
-
-    const content = this.view.editor.getValue()
-    this.spans = tokenizeWithSpans(
-      content,
-      this.plugin.settings.splitCamelCase
-    )
-    this.lines = content.split('\n')
-    this.lineStarts = new Array(this.lines.length)
-    let pos = 0
-    for (let i = 0; i < this.lines.length; i++) {
-      this.lineStarts[i] = pos
-      pos += this.lines[i].length + 1
     }
 
     const inputRow = this.contentEl.createDiv({ cls: 'cfr-find-input-row' })
@@ -65,7 +60,7 @@ export class InFileSearchModal extends Modal {
     setIcon(iconEl, CFR_FIND_ICON)
     this.inputEl = inputRow.createEl('input', {
       type: 'text',
-      placeholder: `Search in ${this.view.file?.basename ?? 'note'}…`,
+      placeholder: `Search in ${this.file.basename}…`,
       cls: 'cfr-find-input',
     })
     this.inputEl.value = this.initialQuery
@@ -84,12 +79,33 @@ export class InFileSearchModal extends Modal {
       chip.appendText(` ${label}`)
     }
     hint('↑ ↓', 'navigate')
-    hint('↵', 'jump to match')
-    hint('tab', 'vault search')
+    hint('↵', 'open at match')
+    hint('tab', 'back to vault search')
 
     this.inputEl.addEventListener('input', () => this.scheduleUpdate())
     this.registerKeys()
     this.inputEl.focus()
+
+    this.loadContent(activeView).catch(console.error)
+  }
+
+  /** Reads and tokenizes the note once. Uses the live editor buffer when the
+   *  target IS the active note, so unsaved edits are searched too. */
+  private async loadContent(activeView: MarkdownView | null): Promise<void> {
+    if (!this.file) return
+    const content =
+      activeView && activeView.file?.path === this.file.path
+        ? activeView.editor.getValue()
+        : await this.app.vault.cachedRead(this.file)
+
+    this.spans = tokenizeWithSpans(content, this.plugin.settings.splitCamelCase)
+    this.lines = content.split('\n')
+    this.lineStarts = new Array(this.lines.length)
+    let pos = 0
+    for (let i = 0; i < this.lines.length; i++) {
+      this.lineStarts[i] = pos
+      pos += this.lines[i].length + 1
+    }
     if (this.initialQuery) this.updateResults()
   }
 
@@ -119,6 +135,10 @@ export class InFileSearchModal extends Modal {
       e.preventDefault()
       this.switchToVault()
     })
+    this.scope.register(['Shift'], 'Tab', e => {
+      e.preventDefault()
+      this.switchToVault()
+    })
   }
 
   private scheduleUpdate(): void {
@@ -127,9 +147,8 @@ export class InFileSearchModal extends Modal {
   }
 
   private updateResults(): void {
-    if (!this.view) return
     const query = this.inputEl.value.trim()
-    if (!query) {
+    if (!query || !this.spans.length) {
       this.list.setItems([])
       return
     }
@@ -162,18 +181,28 @@ export class InFileSearchModal extends Modal {
     renderHighlighted(textEl, m.lineText, [m.offset], m.lineStart)
   }
 
-  private jumpTo(m: LineMatch): void {
-    if (!this.view) return
-    const editor = this.view.editor
+  /** Opens the note (if needed) and places the cursor on the match. */
+  private async jumpTo(m: LineMatch): Promise<void> {
+    const file = this.file
+    if (!file) return
+    this.close()
+
+    let view = this.app.workspace.getActiveViewOfType(MarkdownView)
+    if (!view || view.file?.path !== file.path) {
+      await this.app.workspace.openLinkText(file.path, '', false)
+      view = this.app.workspace.getActiveViewOfType(MarkdownView)
+    }
+    if (!view || view.file?.path !== file.path) return
+
+    const editor = view.editor
     const from = editor.offsetToPos(m.offset.start)
     const to = editor.offsetToPos(m.offset.start + m.offset.length)
-    this.close()
     editor.setSelection(from, to)
     editor.scrollIntoView({ from, to }, true)
   }
 
   private switchToVault(): void {
-    const query = this.inputEl.value
+    const query = this.inputEl?.value ?? this.initialQuery
     this.close()
     this.plugin.openVaultSearch(query)
   }

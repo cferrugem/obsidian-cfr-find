@@ -115,7 +115,31 @@ export class Engine {
         term.length < fuzzy.minFuzzyLength ? false : fuzzy.fuzziness,
       boost: FIELD_BOOSTS,
     }
+    // Precision first: require every term (AND). When that leaves room,
+    // append partial (OR) matches, penalized by how few terms they matched,
+    // so "recuperação de arquivos" still surfaces notes that only say
+    // "recuperar arquivos". Stopword-sized terms (<3 chars) are excluded
+    // from the OR pass to keep it cheap.
     let results = this.ms.search(parsed.textQuery, options)
+    if (results.length < limit) {
+      const orTerms = tokenize(parsed.textQuery, this.splitCamelCase).filter(
+        t => t.length >= 3
+      )
+      if (orTerms.length) {
+        const seen = new Set(results.map(r => r.id as string))
+        const partial = this.ms.search(orTerms.join(' '), {
+          ...options,
+          combineWith: 'OR',
+        })
+        for (const r of partial) {
+          if (seen.has(r.id as string)) continue
+          const matched = new Set(r.queryTerms).size
+          r.score *= 0.5 * (matched / orTerms.length)
+          results.push(r)
+        }
+        results.sort((a, b) => b.score - a.score)
+      }
+    }
 
     if (parsed.excludedTerms.length) {
       const excluded = new Set(

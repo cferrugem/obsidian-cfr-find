@@ -30,6 +30,8 @@ const OFFICE_EXTS = new Set(['docx', 'xlsx'])
 export class Indexer {
   private dirtyTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private ignoreFilters: (string | RegExp)[] = []
+  /** Local mirror of what the worker has indexed: path → mtime. */
+  private known = new Map<string, number>()
   ready = false
 
   constructor(
@@ -151,20 +153,23 @@ export class Indexer {
 
   /** Startup: diff vault against the worker's cache manifest, index the delta. */
   async populate(cachedManifest: IndexedEntry[]): Promise<void> {
+    this.known = new Map(cachedManifest.map(e => [e.path, e.mtime]))
     const files = this.collectIndexableFiles()
     const current = new Map(files.map(f => [f.path, f]))
-    const cached = new Map(cachedManifest.map(e => [e.path, e.mtime]))
 
     const toRemove: string[] = []
-    for (const [path] of cached) {
+    for (const [path] of this.known) {
       if (!current.has(path)) toRemove.push(path)
     }
     const toAdd: TFile[] = []
     for (const [path, file] of current) {
-      if (cached.get(path) !== file.stat.mtime) toAdd.push(file)
+      if (this.known.get(path) !== file.stat.mtime) toAdd.push(file)
     }
 
-    if (toRemove.length) await this.client.removeDocs(toRemove)
+    if (toRemove.length) {
+      await this.client.removeDocs(toRemove)
+      for (const path of toRemove) this.known.delete(path)
+    }
 
     // Markdown first so notes are searchable before other file types.
     toAdd.sort((a, b) =>
@@ -176,6 +181,7 @@ export class Indexer {
       const batch = toAdd.slice(i, i + READ_BATCH)
       const docs = await Promise.all(batch.map(f => this.buildDoc(f)))
       await this.client.addDocs(docs)
+      for (const f of batch) this.known.set(f.path, f.stat.mtime)
       done += batch.length
       this.onProgress(done, toAdd.length)
     }
@@ -195,11 +201,13 @@ export class Indexer {
 
   onDelete(path: string): void {
     this.cancelDirty(path)
+    this.known.delete(path)
     this.client.removeDocs([path]).catch(console.error)
   }
 
   onRename(file: TFile, oldPath: string): void {
     this.cancelDirty(oldPath)
+    this.known.delete(oldPath)
     this.client.removeDocs([oldPath]).catch(console.error)
     if (this.isIndexable(file)) this.reindexNow(file).catch(console.error)
   }
@@ -216,17 +224,36 @@ export class Indexer {
     )
   }
 
-  /** Reindex everything still pending a debounce — called when a modal opens. */
-  async flushDirty(): Promise<void> {
-    const paths = [...this.dirtyTimers.keys()]
-    for (const [path, timer] of this.dirtyTimers) clearTimeout(timer)
+  /**
+   * Self-healing sync, awaited before the first search of every modal
+   * session: cancels pending debounces and re-diffs the whole vault against
+   * what the worker has (path + mtime). Anything missed — a lost event, a
+   * git/sync pull, an interrupted indexing run — is caught here. Cost when
+   * nothing changed: one map diff, no file reads.
+   */
+  async syncBeforeSearch(): Promise<void> {
+    for (const [, timer] of this.dirtyTimers) clearTimeout(timer)
     this.dirtyTimers.clear()
-    const files = paths
-      .map(p => this.app.vault.getFileByPath(p))
-      .filter((f): f is TFile => f !== null)
-    if (!files.length) return
-    const docs = await Promise.all(files.map(f => this.buildDoc(f)))
-    await this.client.addDocs(docs)
+
+    const files = this.collectIndexableFiles()
+    const currentPaths = new Set<string>()
+    const toAdd: TFile[] = []
+    for (const f of files) {
+      currentPaths.add(f.path)
+      if (this.known.get(f.path) !== f.stat.mtime) toAdd.push(f)
+    }
+    const toRemove = [...this.known.keys()].filter(p => !currentPaths.has(p))
+
+    if (toRemove.length) {
+      await this.client.removeDocs(toRemove)
+      for (const path of toRemove) this.known.delete(path)
+    }
+    for (let i = 0; i < toAdd.length; i += READ_BATCH) {
+      const batch = toAdd.slice(i, i + READ_BATCH)
+      const docs = await Promise.all(batch.map(f => this.buildDoc(f)))
+      await this.client.addDocs(docs)
+      for (const f of batch) this.known.set(f.path, f.stat.mtime)
+    }
   }
 
   private cancelDirty(path: string): void {
@@ -240,6 +267,7 @@ export class Indexer {
   private async reindexNow(file: TFile): Promise<void> {
     const doc = await this.buildDoc(file)
     await this.client.addDocs([doc])
+    this.known.set(file.path, file.stat.mtime)
   }
 
   stop(): void {

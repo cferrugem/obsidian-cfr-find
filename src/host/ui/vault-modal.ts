@@ -17,6 +17,7 @@ export class VaultSearchModal extends Modal {
   private currentSearchId = 0
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private observer: IntersectionObserver | null = null
+  private syncPromise: Promise<void> = Promise.resolve()
 
   constructor(
     private plugin: CfrFindPlugin,
@@ -55,15 +56,18 @@ export class VaultSearchModal extends Modal {
     hint('↑ ↓', 'navigate')
     hint('↵', 'open')
     hint('ctrl ↵', 'new pane')
-    hint('tab', 'in-file')
+    hint('tab', 'search inside note')
 
     this.inputEl.addEventListener('input', () => this.scheduleUpdate())
     this.registerKeys()
     this.inputEl.focus()
 
-    // Catch up on notes edited since the last reindex, then run the
-    // initial query (if any).
-    this.plugin.indexer?.flushDirty().catch(console.error)
+    // Self-heal the index before the first search: catches pending edits,
+    // sync/git pulls, and anything a lost event missed. updateResults
+    // awaits this, so results are never computed against a stale index.
+    this.syncPromise =
+      this.plugin.indexer?.syncBeforeSearch().catch(console.error) ??
+      Promise.resolve()
     if (this.initialQuery) this.scheduleUpdate()
   }
 
@@ -114,6 +118,7 @@ export class VaultSearchModal extends Modal {
     }
     const searchId = client.newSearchId()
     this.currentSearchId = searchId
+    await this.syncPromise
     const resp = await client.search(
       searchId,
       query,
@@ -241,14 +246,18 @@ export class VaultSearchModal extends Modal {
     }
   }
 
-  private async switchToInFile(): Promise<void> {
+  /**
+   * Tab: drill into the SELECTED result without opening it in the workspace.
+   * The in-file modal reads the file directly; Enter there opens it at the
+   * chosen match, Tab/Shift+Tab comes back here with the query intact.
+   */
+  private switchToInFile(): void {
     const query = this.inputEl.value
     const hit = this.list.selectedItem
+    const file = hit ? this.app.vault.getFileByPath(hit.path) : null
+    const target = file && this.isTextLike(file.extension) ? file : undefined
     this.close()
-    if (hit) {
-      await this.app.workspace.openLinkText(hit.path, '', false)
-    }
-    new InFileSearchModal(this.plugin, query).open()
+    new InFileSearchModal(this.plugin, query, target).open()
   }
 }
 

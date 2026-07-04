@@ -57,6 +57,31 @@ describe('Engine', () => {
     ).toContain('notes/code.md')
   })
 
+  it('appends partial (OR) matches below full (AND) matches', () => {
+    // apple.md contains both terms; banana.md only "apple".
+    const hits = makeEngine().search(parseQuery('apple pie'), 50, DEFAULT_FUZZY)
+    expect(hits[0].path).toBe('notes/apple.md')
+    expect(hits.map(h => h.path)).toContain('notes/banana.md')
+    expect(hits[0].score).toBeGreaterThan(
+      hits[hits.findIndex(h => h.path === 'notes/banana.md')].score
+    )
+  })
+
+  it('word-form mismatch still surfaces the note (partial match)', () => {
+    // Mirrors a real case: query "recuperação de arquivos" against a note
+    // that says "recuperar arquivos" — AND fails, the OR fallback finds it.
+    const engine = makeEngine()
+    engine.addDocs([
+      doc('notes/backup.md', 'como recuperar arquivos perdidos do vault'),
+    ])
+    const hits = engine.search(
+      parseQuery('recuperação de arquivos'),
+      50,
+      DEFAULT_FUZZY
+    )
+    expect(hits.map(h => h.path)).toContain('notes/backup.md')
+  })
+
   it('typo tolerance is configurable per search', () => {
     const engine = makeEngine()
     const exact = { fuzziness: 0, minFuzzyLength: 4, prefixMinLength: 2 }
