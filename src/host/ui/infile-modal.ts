@@ -244,11 +244,31 @@ export class InFileSearchModal extends Modal {
     }
     if (!view || view.file?.path !== file.path) return
 
+    await this.performJumpToMatch(view, target.start, target.length)
+  }
+
+  private async performJumpToMatch(
+    view: MarkdownView,
+    start: number,
+    length: number
+  ): Promise<void> {
+    if (view.getMode() === 'preview') {
+      await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
     const editor = view.editor
-    const from = editor.offsetToPos(target.start)
-    const to = editor.offsetToPos(target.start + target.length)
+    const from = editor.offsetToPos(start)
+    const to = editor.offsetToPos(start + length)
     editor.setSelection(from, to)
     editor.scrollIntoView({ from, to }, true)
+    setTimeout(() => {
+      try {
+        editor.setSelection(from, to)
+        editor.scrollIntoView({ from, to }, true)
+      } catch (e) {
+        // Ignore if view was closed
+      }
+    }, 100)
   }
 
   private switchToVault(): void {

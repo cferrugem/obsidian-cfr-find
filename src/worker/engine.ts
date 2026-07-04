@@ -110,7 +110,8 @@ export class Engine {
     if (!parsed.textQuery) return []
     const options: SearchOptions = {
       combineWith: 'AND',
-      prefix: term => term.length >= fuzzy.prefixMinLength,
+      prefix: (term, index, terms) =>
+        term.length >= fuzzy.prefixMinLength || index === terms.length - 1,
       fuzzy: term =>
         term.length < fuzzy.minFuzzyLength ? false : fuzzy.fuzziness,
       boost: FIELD_BOOSTS,

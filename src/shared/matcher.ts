@@ -21,15 +21,75 @@ export interface TermMatch extends MatchOffset {
   term: string
 }
 
+function editDistance(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, () =>
+    Array(b.length + 1).fill(0)
+  )
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1]
+      } else {
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + 1
+        )
+      }
+    }
+  }
+  return dp[a.length][b.length]
+}
+
+function termMatches(
+  t: string,
+  q: string,
+  fuzziness = 0.1,
+  minFuzzyLength = 4
+): boolean {
+  if (t === q) return true
+  if (t.startsWith(q)) return true
+  if (q.length >= minFuzzyLength) {
+    const maxDist = Math.floor(fuzziness * q.length)
+    if (maxDist > 0 && Math.abs(t.length - q.length) <= maxDist) {
+      return editDistance(t, q) <= maxDist
+    }
+  }
+  return false
+}
+
 /**
  * Terms worth highlighting/ranking by. Stopword-sized terms ("de", "a")
  * only count when the query has nothing longer — otherwise they drown
  * results and excerpts in noise.
+ * If queryTerms is provided, terms (which are the expanded matched index terms)
+ * are filtered to only keep those matching at least one significant query term.
  */
-export function significantTerms(terms: string[]): string[] {
-  const significant = terms.filter(t => t.length >= 3)
-  return significant.length ? significant : terms
+export function significantTerms(
+  terms: string[],
+  queryTerms?: string[],
+  fuzziness = 0.1,
+  minFuzzyLength = 4
+): string[] {
+  if (!queryTerms) {
+    const significant = terms.filter(t => t.length >= 3)
+    return significant.length ? significant : terms
+  }
+
+  const sigQuery = queryTerms.filter(t => t.length >= 3)
+  const sigQueryTerms = sigQuery.length ? sigQuery : queryTerms
+
+  if (sigQueryTerms.length === queryTerms.length) {
+    return terms
+  }
+
+  return terms.filter(t =>
+    sigQueryTerms.some(q => termMatches(t, q, fuzziness, minFuzzyLength))
+  )
 }
+
 
 /** The query term this span satisfies, or null. */
 function matchedTerm(
@@ -73,8 +133,11 @@ export function findTermOffsets(
       length: raw.length,
       variants: tokenVariants(raw, splitCamelCase),
     }
-    if (spanMatches(span, termSet, prefixTerms)) {
-      out.push({ start: span.start, length: span.length })
+    const term = matchedTerm(span, termSet, prefixTerms)
+    if (term !== null) {
+      const base = span.variants[0]
+      const length = (base && base.startsWith(term)) ? Math.min(span.length, term.length) : span.length
+      out.push({ start: span.start, length })
       if (out.length >= maxMatches) break
     }
   }
@@ -92,8 +155,11 @@ export function matchSpans(
   const prefixTerms = terms.filter(t => t.length >= 2)
   const out: MatchOffset[] = []
   for (const span of spans) {
-    if (spanMatches(span, termSet, prefixTerms)) {
-      out.push({ start: span.start, length: span.length })
+    const term = matchedTerm(span, termSet, prefixTerms)
+    if (term !== null) {
+      const base = span.variants[0]
+      const length = (base && base.startsWith(term)) ? Math.min(span.length, term.length) : span.length
+      out.push({ start: span.start, length })
       if (out.length >= maxMatches) break
     }
   }
@@ -166,7 +232,9 @@ export function matchSpansDetailed(
   for (const span of spans) {
     const term = matchedTerm(span, termSet, prefixTerms)
     if (term !== null) {
-      out.push({ start: span.start, length: span.length, term })
+      const base = span.variants[0]
+      const length = (base && base.startsWith(term)) ? Math.min(span.length, term.length) : span.length
+      out.push({ start: span.start, length, term })
       if (out.length >= maxMatches) break
     }
   }
@@ -190,7 +258,10 @@ export function findApproxPhraseInSpans(
     for (let j = 0; j < seq.length; j++) {
       const want = seq[j]
       const ok = spans[i + j].variants.some(
-        v => v === want || (want.length >= 3 && v.startsWith(want))
+        v =>
+          v === want ||
+          (want.length >= 3 && v.startsWith(want)) ||
+          (j === seq.length - 1 && v.startsWith(want))
       )
       if (!ok) continue outer
     }

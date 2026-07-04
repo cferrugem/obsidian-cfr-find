@@ -24,10 +24,9 @@ describe('findTermOffsets', () => {
     expect(text.slice(3, 7)).toBe('café')
   })
 
-  it('matches by prefix', () => {
+  it('matches by prefix (highlights only prefix length)', () => {
     const offsets = findTermOffsets('performance matters', ['perf'], true)
-    expect(offsets).toHaveLength(1)
-    expect(offsets[0].start).toBe(0)
+    expect(offsets).toEqual([{ start: 0, length: 4 }])
   })
 
   it('matches camelCase subtokens (highlights whole token)', () => {
@@ -85,6 +84,36 @@ describe('significantTerms', () => {
   it('keeps short terms when the query has nothing longer', () => {
     expect(significantTerms(['de', 'a'])).toEqual(['de', 'a'])
   })
+
+  it('filters expanded index terms based on queryTerms', () => {
+    // When "de" gets prefix-expanded to "dentro" and "dele" but "recuperacao" is significant,
+    // we should only keep "recuperacao".
+    const queryTerms = ['recuperacao', 'de']
+    const matchedTerms = ['recuperacao', 'dentro', 'dele']
+    expect(significantTerms(matchedTerms, queryTerms)).toEqual(['recuperacao'])
+  })
+
+  it('keeps all expanded terms if all query terms are significant', () => {
+    // When "recu" expands to "recuperacao", both are kept because "recu" is >= 3 chars.
+    const queryTerms = ['recu']
+    const matchedTerms = ['recuperacao', 'recuperar']
+    expect(significantTerms(matchedTerms, queryTerms)).toEqual(['recuperacao', 'recuperar'])
+  })
+
+  it('keeps prefix-expanded terms for short query terms when query has nothing longer', () => {
+    const queryTerms = ['de']
+    const matchedTerms = ['dentro', 'dele', 'de']
+    expect(significantTerms(matchedTerms, queryTerms)).toEqual(['dentro', 'dele', 'de'])
+  })
+
+  it('filters out fuzzy matching expanded terms of insignificant query terms', () => {
+    // If the query is "recuperacao de", and we have a fuzzy match of "recuperacao" -> "recuperacao"
+    // and "de" matched "dentro" and "dele", "dentro" and "dele" should be filtered out,
+    // but fuzzy match of "recuperacao" should be kept.
+    const queryTerms = ['recuperasao', 'de']
+    const matchedTerms = ['recuperacao', 'dentro', 'dele']
+    expect(significantTerms(matchedTerms, queryTerms, 0.1, 4)).toEqual(['recuperacao'])
+  })
 })
 
 describe('findApproxPhraseInSpans', () => {
@@ -92,6 +121,16 @@ describe('findApproxPhraseInSpans', () => {
     const text = 'O plugin core Recuperação de arquivos mantém snapshots.'
     const spans = tokenizeWithSpans(text, true)
     const offsets = findApproxPhraseInSpans(spans, 'recuperação de arquivo')
+    expect(offsets).toHaveLength(1)
+    expect(
+      text.slice(offsets[0].start, offsets[0].start + offsets[0].length)
+    ).toBe('Recuperação de arquivos')
+  })
+
+  it('anchors a query with a 1-character last term as a prefix (de a → de arquivos)', () => {
+    const text = 'O plugin core Recuperação de arquivos mantém snapshots.'
+    const spans = tokenizeWithSpans(text, true)
+    const offsets = findApproxPhraseInSpans(spans, 'recuperação de a')
     expect(offsets).toHaveLength(1)
     expect(
       text.slice(offsets[0].start, offsets[0].start + offsets[0].length)

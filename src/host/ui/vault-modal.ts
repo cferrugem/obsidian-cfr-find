@@ -10,7 +10,7 @@ import {
   pickExcerptOffsets,
   significantTerms,
 } from '../../shared/matcher'
-import { tokenizeWithSpans } from '../../shared/tokenizer'
+import { tokenize, tokenizeWithSpans } from '../../shared/tokenizer'
 import { parseQuery } from '../../shared/query-parser'
 import { renderExcerpt, renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
@@ -205,7 +205,12 @@ export class VaultSearchModal extends Modal {
       basename,
       findTermOffsets(
         basename,
-        significantTerms(hit.terms),
+        significantTerms(
+          hit.terms,
+          tokenize(this.inputEl.value, this.plugin.settings.splitCamelCase),
+          this.plugin.settings.fuzziness,
+          this.plugin.settings.minFuzzyLength
+        ),
         this.plugin.settings.splitCamelCase,
         10
       )
@@ -245,7 +250,16 @@ export class VaultSearchModal extends Modal {
       renderExcerpt(el, content, phrase)
       return
     }
-    const matches = matchSpansDetailed(spans, significantTerms(terms), 500)
+    const matches = matchSpansDetailed(
+      spans,
+      significantTerms(
+        terms,
+        tokenize(query, splitCamel),
+        this.plugin.settings.fuzziness,
+        this.plugin.settings.minFuzzyLength
+      ),
+      500
+    )
     renderExcerpt(el, content, pickExcerptOffsets(matches))
   }
 
@@ -263,15 +277,45 @@ export class VaultSearchModal extends Modal {
     let offsets = findApproxPhraseInSpans(spans, parseQuery(query).textQuery, 1)
     if (!offsets.length) {
       offsets = pickExcerptOffsets(
-        matchSpansDetailed(spans, significantTerms(hit.terms), 500)
+        matchSpansDetailed(
+          spans,
+          significantTerms(
+            hit.terms,
+            tokenize(query, splitCamel),
+            this.plugin.settings.fuzziness,
+            this.plugin.settings.minFuzzyLength
+          ),
+          500
+        )
       )
     }
     if (offsets.length) {
-      const from = view.editor.offsetToPos(offsets[0].start)
-      const to = view.editor.offsetToPos(offsets[0].start + offsets[0].length)
-      view.editor.setSelection(from, to)
-      view.editor.scrollIntoView({ from, to }, true)
+      await this.performJumpToMatch(view, offsets[0].start, offsets[0].length)
     }
+  }
+
+  private async performJumpToMatch(
+    view: MarkdownView,
+    start: number,
+    length: number
+  ): Promise<void> {
+    if (view.getMode() === 'preview') {
+      await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    const editor = view.editor
+    const from = editor.offsetToPos(start)
+    const to = editor.offsetToPos(start + length)
+    editor.setSelection(from, to)
+    editor.scrollIntoView({ from, to }, true)
+    setTimeout(() => {
+      try {
+        editor.setSelection(from, to)
+        editor.scrollIntoView({ from, to }, true)
+      } catch (e) {
+        // Ignore if view was closed
+      }
+    }, 100)
   }
 
   /**
