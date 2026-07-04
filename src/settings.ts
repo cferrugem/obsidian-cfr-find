@@ -293,6 +293,37 @@ export class CfrFindSettingTab extends PluginSettingTab {
         button.buttonEl.addClass('mod-warning')
       })
 
+    new Setting(containerEl)
+      .setName('Reset settings to defaults')
+      .setDesc(
+        'Restore every CFR Find option to its default value. The index is ' +
+          'updated automatically if any indexing option changes.'
+      )
+      .addButton(button => {
+        let armed = false
+        button.setButtonText('Reset').onClick(async () => {
+          // Two-click confirmation so a stray tap cannot wipe the settings.
+          if (!armed) {
+            armed = true
+            button.setButtonText('Click again to confirm')
+            window.setTimeout(() => {
+              armed = false
+              button.setButtonText('Reset')
+            }, 4000)
+            return
+          }
+          this.plugin.settings = {
+            ...DEFAULT_SETTINGS,
+            extraFileTypes: [...DEFAULT_SETTINGS.extraFileTypes],
+          }
+          await this.plugin.saveSettings()
+          this.plugin.scheduleEngineRestart()
+          this.display()
+          new Notice('CFR Find: settings restored to defaults')
+        })
+        button.buttonEl.addClass('mod-warning')
+      })
+
     // ---- About ----
     new Setting(containerEl).setName('About').setHeading()
 
