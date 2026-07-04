@@ -158,6 +158,11 @@
   padding-left: 23px;
   line-height: 1.5;
   margin-top: 4px;
+  /* Keep result cards compact: at most 3 lines of excerpt. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ---- Highlights ---- */
@@ -268,6 +273,28 @@
 .is-mobile .cfr-find-results {
   height: 60vh;
   padding: 4px 8px;
+}
+
+/* Tighter cards on small screens: shorter excerpts, less padding. */
+.is-mobile .cfr-find-input-row {
+  margin: 8px;
+  padding: 4px 12px;
+}
+
+.is-mobile .cfr-find-result {
+  padding: 8px 10px 8px 16px;
+  margin: 4px 0;
+}
+
+.is-mobile .cfr-find-result-excerpt {
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
+
+.is-mobile .cfr-find-result-path {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .is-mobile .cfr-find-footer {

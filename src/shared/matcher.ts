@@ -16,6 +16,17 @@ export interface MatchOffset {
   length: number
 }
 
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/
+
+/**
+ * Where the note body starts (after the YAML frontmatter block, if any).
+ * Excerpts anchored before this point would show raw metadata.
+ */
+export function frontmatterEnd(content: string): number {
+  const m = FRONTMATTER_RE.exec(content)
+  return m ? m[0].length : 0
+}
+
 /** A match that remembers WHICH query term it satisfied. */
 export interface TermMatch extends MatchOffset {
   term: string

@@ -6,6 +6,7 @@ import { SearchHit } from '../../shared/protocol'
 import {
   findApproxPhraseInSpans,
   findTermOffsets,
+  frontmatterEnd,
   matchSpansDetailed,
   pickExcerptOffsets,
   significantTerms,
@@ -248,11 +249,16 @@ export class VaultSearchModal extends Modal {
     const raw = await this.app.vault.cachedRead(file)
     const content = raw.replace(/\r\n/g, '\n')
     const splitCamel = this.plugin.settings.splitCamelCase
-    const spans = tokenizeWithSpans(content, splitCamel)
+    // Anchor excerpts in the note BODY: matches inside the YAML frontmatter
+    // would render raw metadata ("--- data: … revisar: false ---").
+    const bodyStart = frontmatterEnd(content)
+    const spans = tokenizeWithSpans(content, splitCamel).filter(
+      s => s.start >= bodyStart
+    )
 
     const phrase = findApproxPhraseInSpans(spans, parseQuery(query).textQuery, 1)
     if (phrase.length) {
-      renderExcerpt(el, content, phrase)
+      renderExcerpt(el, content, phrase, bodyStart)
       return
     }
     const matches = matchSpansDetailed(
@@ -265,7 +271,7 @@ export class VaultSearchModal extends Modal {
       ),
       500
     )
-    renderExcerpt(el, content, pickExcerptOffsets(matches))
+    renderExcerpt(el, content, pickExcerptOffsets(matches), bodyStart)
   }
 
   private async openHit(hit: SearchHit, newLeaf: boolean): Promise<void> {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   findApproxPhraseInSpans,
+  frontmatterEnd,
   findPhraseOffsets,
   findTermOffsets,
   matchSpans,
@@ -182,5 +183,24 @@ describe('findApproxPhraseInSpans — typed-word leniency', () => {
     expect(findApproxPhraseInSpans(spans, 'recuperação de arquivos')).toEqual(
       []
     )
+  })
+})
+
+describe('frontmatterEnd', () => {
+  it('returns the body offset after a YAML frontmatter block', () => {
+    const content = '---\ndata: 2026-06-27\nrevisar: false\n---\n# Título\ncorpo'
+    const end = frontmatterEnd(content)
+    expect(content.slice(end).startsWith('# Título')).toBe(true)
+  })
+
+  it('handles CRLF frontmatter', () => {
+    const content = '---\r\nkey: value\r\n---\r\nbody here'
+    expect(content.slice(frontmatterEnd(content))).toBe('body here')
+  })
+
+  it('returns 0 when there is no frontmatter', () => {
+    expect(frontmatterEnd('# Título\ncorpo')).toBe(0)
+    // A --- ruler later in the note is not frontmatter.
+    expect(frontmatterEnd('texto\n---\nmais texto')).toBe(0)
   })
 })

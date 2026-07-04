@@ -31,15 +31,24 @@ export function renderHighlighted(
   }
 }
 
-/** Renders a window of `content` around the first match into `el`. */
+/**
+ * Renders a window of `content` around the first match into `el`.
+ * `bodyStart` skips leading metadata (frontmatter) in the no-match fallback.
+ */
 export function renderExcerpt(
   el: HTMLElement,
   content: string,
-  offsets: MatchOffset[]
+  offsets: MatchOffset[],
+  bodyStart = 0
 ): void {
   el.empty()
   if (!offsets.length) {
-    el.appendText(content.slice(0, EXCERPT_RADIUS * 2).replace(/\s+/g, ' '))
+    el.appendText(
+      content
+        .slice(bodyStart, bodyStart + EXCERPT_RADIUS * 2)
+        .replace(/\s+/g, ' ')
+        .trim()
+    )
     return
   }
   const first = offsets[0]
