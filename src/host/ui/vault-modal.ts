@@ -7,6 +7,7 @@ import {
   findApproxPhraseInSpans,
   findTermOffsets,
   frontmatterEnd,
+  lineOfOffset,
   matchSpansDetailed,
   pickExcerptOffsets,
   significantTerms,
@@ -301,7 +302,12 @@ export class VaultSearchModal extends Modal {
       )
     }
     if (offsets.length) {
-      await jumpToMatch(view, offsets[0].start, offsets[0].length)
+      await jumpToMatch(
+        view,
+        offsets[0].start,
+        offsets[0].length,
+        lineOfOffset(content, offsets[0].start)
+      )
     }
   }
 

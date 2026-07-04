@@ -246,7 +246,7 @@ export class InFileSearchModal extends Modal {
     }
     if (!view || view.file?.path !== file.path) return
 
-    await jumpToMatch(view, target.start, target.length)
+    await jumpToMatch(view, target.start, target.length, m.line)
   }
 
   private switchToVault(): void {

@@ -27,6 +27,17 @@ export function frontmatterEnd(content: string): number {
   return m ? m[0].length : 0
 }
 
+/** 0-based line number containing a character offset. */
+export function lineOfOffset(content: string, offset: number): number {
+  let line = 0
+  let pos = content.indexOf('\n')
+  while (pos !== -1 && pos < offset) {
+    line++
+    pos = content.indexOf('\n', pos + 1)
+  }
+  return line
+}
+
 /** A match that remembers WHICH query term it satisfied. */
 export interface TermMatch extends MatchOffset {
   term: string

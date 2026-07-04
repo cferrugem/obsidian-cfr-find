@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   findApproxPhraseInSpans,
   frontmatterEnd,
+  lineOfOffset,
   findPhraseOffsets,
   findTermOffsets,
   matchSpans,
@@ -202,5 +203,14 @@ describe('frontmatterEnd', () => {
     expect(frontmatterEnd('# Título\ncorpo')).toBe(0)
     // A --- ruler later in the note is not frontmatter.
     expect(frontmatterEnd('texto\n---\nmais texto')).toBe(0)
+  })
+})
+
+describe('lineOfOffset', () => {
+  it('maps offsets to 0-based lines', () => {
+    const content = 'linha um\nlinha dois\nlinha três'
+    expect(lineOfOffset(content, 0)).toBe(0)
+    expect(lineOfOffset(content, 9)).toBe(1)
+    expect(lineOfOffset(content, content.length - 1)).toBe(2)
   })
 })

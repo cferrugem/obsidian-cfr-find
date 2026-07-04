@@ -1,21 +1,21 @@
 import { MarkdownView } from 'obsidian'
 
 /**
- * Places the cursor/selection on a match inside an (already active) note.
- * Handles the two reasons a jump can silently land at the top:
- * - reading view: the editor API can't scroll the preview, so the view is
- *   switched to source mode first;
- * - editor not laid out yet right after opening: the selection is re-applied
- *   on a short delay once CodeMirror has settled.
+ * Brings a match into view WITHOUT changing how the user reads the note:
+ * - reading view: scroll to the match's line via ephemeral state (the same
+ *   mechanism internal links use) — the view mode is left untouched;
+ * - source/live preview: select the match and scroll it into view, retrying
+ *   once shortly after in case the editor was still being laid out.
  */
 export async function jumpToMatch(
   view: MarkdownView,
   start: number,
-  length: number
+  length: number,
+  line: number
 ): Promise<void> {
   if (view.getMode() === 'preview') {
-    await view.setState({ ...view.getState(), mode: 'source' }, { history: false })
-    await new Promise(resolve => window.setTimeout(resolve, 50))
+    view.setEphemeralState({ line })
+    return
   }
   const editor = view.editor
   const from = editor.offsetToPos(start)
