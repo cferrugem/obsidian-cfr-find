@@ -51,7 +51,9 @@ export function renderExcerpt(
     const ws = content.indexOf(' ', from)
     if (ws !== -1 && ws < first.start) from = ws + 1
   }
-  const windowText = content.slice(from, to).replace(/[\r\n]+/g, ' ')
+  // Length-preserving replacement: collapsing newline RUNS into one space
+  // would shift every highlight offset after them (mid-word marks).
+  const windowText = content.slice(from, to).replace(/[\r\n]/g, ' ')
   const visible = offsets.filter(o => o.start >= from && o.start < to)
   if (from > 0) el.appendChild(document.createTextNode('…'))
   renderHighlighted(el, windowText, visible, from)

@@ -3,7 +3,15 @@ import { fuzzyOptions } from '../../settings'
 import { CFR_FIND_ICON } from './icon'
 import type CfrFindPlugin from '../../main'
 import { SearchHit } from '../../shared/protocol'
-import { findTermOffsets } from '../../shared/matcher'
+import {
+  findApproxPhraseInSpans,
+  findTermOffsets,
+  matchSpansDetailed,
+  pickExcerptOffsets,
+  significantTerms,
+} from '../../shared/matcher'
+import { tokenizeWithSpans } from '../../shared/tokenizer'
+import { parseQuery } from '../../shared/query-parser'
 import { renderExcerpt, renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
 import { InFileSearchModal } from './infile-modal'
@@ -195,7 +203,12 @@ export class VaultSearchModal extends Modal {
     renderHighlighted(
       titleText,
       basename,
-      findTermOffsets(basename, hit.terms, this.plugin.settings.splitCamelCase, 10)
+      findTermOffsets(
+        basename,
+        significantTerms(hit.terms),
+        this.plugin.settings.splitCamelCase,
+        10
+      )
     )
     el.createDiv({ cls: 'cfr-find-result-path', text: hit.path })
     // Excerpts only for text files: cachedRead on a PDF/image would render
@@ -204,40 +217,55 @@ export class VaultSearchModal extends Modal {
       const excerpt = el.createDiv({ cls: 'cfr-find-result-excerpt' })
       excerpt.dataset.path = hit.path
       excerpt.dataset.terms = JSON.stringify(hit.terms)
+      excerpt.dataset.query = this.inputEl.value
       this.observer?.observe(excerpt)
     }
   }
 
-  /** Lazily builds the excerpt when the row first scrolls into view. */
+  /**
+   * Lazily builds the excerpt when the row first scrolls into view.
+   * Anchor priority: (1) the query typed as a near-phrase in the note,
+   * (2) the character window covering the most distinct query terms,
+   * so the excerpt shows the note's BEST spot, not its first stray token.
+   */
   private async fillExcerpt(el: HTMLElement): Promise<void> {
     const path = el.dataset.path
     if (!path) return
     const file = this.app.vault.getFileByPath(path)
     if (!file) return
     const terms: string[] = JSON.parse(el.dataset.terms ?? '[]')
-    const content = await this.app.vault.cachedRead(file)
-    const offsets = findTermOffsets(
-      content,
-      terms,
-      this.plugin.settings.splitCamelCase,
-      20
-    )
-    renderExcerpt(el, content, offsets)
+    const query = el.dataset.query ?? ''
+    const raw = await this.app.vault.cachedRead(file)
+    const content = raw.replace(/\r\n/g, '\n')
+    const splitCamel = this.plugin.settings.splitCamelCase
+    const spans = tokenizeWithSpans(content, splitCamel)
+
+    const phrase = findApproxPhraseInSpans(spans, parseQuery(query).textQuery, 1)
+    if (phrase.length) {
+      renderExcerpt(el, content, phrase)
+      return
+    }
+    const matches = matchSpansDetailed(spans, significantTerms(terms), 500)
+    renderExcerpt(el, content, pickExcerptOffsets(matches))
   }
 
   private async openHit(hit: SearchHit, newLeaf: boolean): Promise<void> {
+    const query = this.inputEl.value
     this.close()
     await this.app.workspace.openLinkText(hit.path, '', newLeaf)
-    // Jump to the first match in the opened editor.
+    // Jump to the note's best match: the typed query as a near-phrase if it
+    // occurs, otherwise the densest cluster of query terms.
     const view = this.app.workspace.getActiveViewOfType(MarkdownView)
     if (!view || view.file?.path !== hit.path) return
+    const splitCamel = this.plugin.settings.splitCamelCase
     const content = view.editor.getValue()
-    const offsets = findTermOffsets(
-      content,
-      hit.terms,
-      this.plugin.settings.splitCamelCase,
-      1
-    )
+    const spans = tokenizeWithSpans(content, splitCamel)
+    let offsets = findApproxPhraseInSpans(spans, parseQuery(query).textQuery, 1)
+    if (!offsets.length) {
+      offsets = pickExcerptOffsets(
+        matchSpansDetailed(spans, significantTerms(hit.terms), 500)
+      )
+    }
     if (offsets.length) {
       const from = view.editor.offsetToPos(offsets[0].start)
       const to = view.editor.offsetToPos(offsets[0].start + offsets[0].length)

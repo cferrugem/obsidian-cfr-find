@@ -1,19 +1,31 @@
 import { MarkdownView, Modal, setIcon, TFile } from 'obsidian'
 import type CfrFindPlugin from '../../main'
 import { tokenize, tokenizeWithSpans, TokenSpan } from '../../shared/tokenizer'
-import { matchSpans, MatchOffset } from '../../shared/matcher'
+import {
+  findApproxPhraseInSpans,
+  matchSpansDetailed,
+  MatchOffset,
+  significantTerms,
+  TermMatch,
+} from '../../shared/matcher'
 import { renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
 import { CFR_FIND_ICON } from './icon'
 
 const DEBOUNCE_MS = 60
-const MAX_MATCHES = 500
+const MAX_MATCHES = 2000
+const MAX_ROWS = 200
 
+/** One row = one LINE of the note, with every match in it highlighted. */
 interface LineMatch {
-  offset: MatchOffset
   line: number
   lineStart: number
   lineText: string
+  offsets: MatchOffset[]
+  /** Distinct query terms present in this line. */
+  distinct: number
+  /** Line contains the query as a near-phrase. */
+  phrase: boolean
 }
 
 /**
@@ -93,10 +105,13 @@ export class InFileSearchModal extends Modal {
    *  target IS the active note, so unsaved edits are searched too. */
   private async loadContent(activeView: MarkdownView | null): Promise<void> {
     if (!this.file) return
-    const content =
+    // CRLF → LF: the editor uses LF offsets, so jump positions stay exact
+    // even for files checked out with Windows line endings.
+    const content = (
       activeView && activeView.file?.path === this.file.path
         ? activeView.editor.getValue()
         : await this.app.vault.cachedRead(this.file)
+    ).replace(/\r\n/g, '\n')
 
     this.spans = tokenizeWithSpans(content, this.plugin.settings.splitCamelCase)
     this.lines = content.split('\n')
@@ -146,45 +161,80 @@ export class InFileSearchModal extends Modal {
     this.debounceTimer = setTimeout(() => this.updateResults(), DEBOUNCE_MS)
   }
 
+  /**
+   * One row per line, ranked like the user expects: lines containing the
+   * query as a near-phrase first, then lines matching more distinct terms,
+   * then document order. Stopword-sized terms ("de") don't count unless
+   * the whole query is made of them.
+   */
   private updateResults(): void {
     const query = this.inputEl.value.trim()
     if (!query || !this.spans.length) {
       this.list.setItems([])
       return
     }
-    const terms = tokenize(query, this.plugin.settings.splitCamelCase)
-    const offsets = matchSpans(this.spans, terms, MAX_MATCHES)
-    this.list.setItems(offsets.map(o => this.toLineMatch(o)))
+    const terms = significantTerms(
+      tokenize(query, this.plugin.settings.splitCamelCase)
+    )
+    const matches = matchSpansDetailed(this.spans, terms, MAX_MATCHES)
+
+    const byLine = new Map<number, { offsets: MatchOffset[]; terms: Set<string> }>()
+    for (const m of matches) {
+      const line = this.lineOf(m.start)
+      let entry = byLine.get(line)
+      if (!entry) {
+        entry = { offsets: [], terms: new Set() }
+        byLine.set(line, entry)
+      }
+      entry.offsets.push({ start: m.start, length: m.length })
+      entry.terms.add(m.term)
+    }
+
+    const phraseLines = new Set(
+      findApproxPhraseInSpans(this.spans, query, 50).map(o => this.lineOf(o.start))
+    )
+
+    const rows: LineMatch[] = [...byLine.entries()].map(([line, entry]) => ({
+      line,
+      lineStart: this.lineStarts[line],
+      lineText: this.lines[line],
+      offsets: entry.offsets,
+      distinct: entry.terms.size,
+      phrase: phraseLines.has(line),
+    }))
+    rows.sort(
+      (a, b) =>
+        Number(b.phrase) - Number(a.phrase) ||
+        b.distinct - a.distinct ||
+        a.line - b.line
+    )
+    this.list.setItems(rows.slice(0, MAX_ROWS))
   }
 
-  private toLineMatch(offset: MatchOffset): LineMatch {
-    // Binary search the line containing this offset.
+  /** Binary search the line containing a character offset. */
+  private lineOf(offset: number): number {
     let lo = 0
     let hi = this.lineStarts.length - 1
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1
-      if (this.lineStarts[mid] <= offset.start) lo = mid
+      if (this.lineStarts[mid] <= offset) lo = mid
       else hi = mid - 1
     }
-    return {
-      offset,
-      line: lo,
-      lineStart: this.lineStarts[lo],
-      lineText: this.lines[lo],
-    }
+    return lo
   }
 
   private renderMatch(m: LineMatch, el: HTMLElement): void {
     el.addClass('cfr-find-infile-row')
     el.createSpan({ cls: 'cfr-find-line-number', text: String(m.line + 1) })
     const textEl = el.createSpan({ cls: 'cfr-find-line-text' })
-    renderHighlighted(textEl, m.lineText, [m.offset], m.lineStart)
+    renderHighlighted(textEl, m.lineText, m.offsets, m.lineStart)
   }
 
-  /** Opens the note (if needed) and places the cursor on the match. */
+  /** Opens the note (if needed) and places the cursor on the line's first match. */
   private async jumpTo(m: LineMatch): Promise<void> {
     const file = this.file
-    if (!file) return
+    const target = m.offsets[0]
+    if (!file || !target) return
     this.close()
 
     let view = this.app.workspace.getActiveViewOfType(MarkdownView)
@@ -195,8 +245,8 @@ export class InFileSearchModal extends Modal {
     if (!view || view.file?.path !== file.path) return
 
     const editor = view.editor
-    const from = editor.offsetToPos(m.offset.start)
-    const to = editor.offsetToPos(m.offset.start + m.offset.length)
+    const from = editor.offsetToPos(target.start)
+    const to = editor.offsetToPos(target.start + target.length)
     editor.setSelection(from, to)
     editor.scrollIntoView({ from, to }, true)
   }
