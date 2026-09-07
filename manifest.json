@@ -1,7 +1,7 @@
 {
   "id": "cfr-find",
   "name": "CFR Find",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "minAppVersion": "1.5.7",
   "description": "Search your vault with a fast, worker-powered index. Typo-tolerant fuzzy matching, in-file search, and optional PDF, image, and Office document indexing. Inspired by Omnisearch.",
   "author": "cferrugem",
