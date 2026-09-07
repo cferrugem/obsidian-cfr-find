@@ -1,0 +1,302 @@
+/* ============ CFR Find — Premium Visual Identity ============ */
+
+/* ---- Modal Container (Glassmorphism & Float) ---- */
+.cfr-find-modal {
+  max-width: 720px;
+  width: 90vw;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 40%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 20px 50px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* ---- Search Input Row ---- */
+.cfr-find-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 50%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition:
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cfr-find-input-row:focus-within {
+  border-color: var(--interactive-accent);
+  background: var(--background-primary);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 12px color-mix(in srgb, var(--interactive-accent) 8%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+}
+
+.cfr-find-input-icon {
+  display: flex;
+  align-items: center;
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+}
+
+.cfr-find-input-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cfr-find-input {
+  flex: 1;
+  font-size: var(--font-ui-large);
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+}
+
+.cfr-find-input:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+/* ---- Results Container ---- */
+.cfr-find-results {
+  height: 55vh;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+/* ---- Individual Result Row ---- */
+.cfr-find-result {
+  position: relative;
+  padding: 10px 14px 10px 18px;
+  margin: 6px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Accent Indicator Bar */
+.cfr-find-result::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 3px;
+  background: transparent;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+/* Selected State */
+.cfr-find-result.is-selected {
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary));
+  border-color: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+  transform: scale(1.003);
+}
+
+.cfr-find-result.is-selected::before {
+  background: var(--interactive-accent);
+  box-shadow: 0 0 6px var(--interactive-accent);
+}
+
+.cfr-find-result-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.cfr-find-result-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: color 120ms ease;
+}
+
+.cfr-find-result.is-selected .cfr-find-result-icon {
+  color: var(--interactive-accent);
+}
+
+.cfr-find-result-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cfr-find-result-path {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  padding-left: 23px;
+  margin-top: 2px;
+}
+
+.cfr-find-result-excerpt {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  min-height: 1.1em;
+  overflow-wrap: anywhere;
+  padding-left: 23px;
+  line-height: 1.5;
+  margin-top: 4px;
+  /* Keep result cards compact: at most 3 lines of excerpt. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- Highlights ---- */
+.cfr-find-highlight,
+.cfr-find-modal mark {
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  color: var(--text-normal);
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: 0 1px;
+  border-bottom: 2px solid var(--interactive-accent);
+  font-weight: 500;
+}
+
+/* ---- Footer & Keyboard Hints ---- */
+.cfr-find-footer {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 12px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 40%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 30%, transparent);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.cfr-find-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfr-find-hint kbd {
+  font-family: var(--font-interface);
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- In-file Mode ---- */
+.cfr-find-infile-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.cfr-find-line-number {
+  min-width: 3em;
+  text-align: right;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-ui-smaller);
+}
+
+.cfr-find-line-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+
+.cfr-find-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+/* ---- Settings tab styling ---- */
+.cfr-find-settings-note {
+  padding: 12px 16px;
+  margin: 8px 0 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+  border-left: 4px solid var(--interactive-accent);
+  background: color-mix(in srgb, var(--background-secondary) 40%, transparent);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.45;
+}
+
+.cfr-find-credits {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 40%, transparent);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+
+/* ---- Mobile Responsiveness ---- */
+.is-mobile .cfr-find-modal {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0;
+  border: none;
+  backdrop-filter: none; /* Disable backdrop filter on mobile for better performance */
+  -webkit-backdrop-filter: none;
+  background: var(--background-primary);
+}
+
+.is-mobile .cfr-find-results {
+  height: 60vh;
+  padding: 4px 8px;
+}
+
+/* Tighter cards on small screens: shorter excerpts, less padding. */
+.is-mobile .cfr-find-input-row {
+  margin: 8px;
+  padding: 4px 12px;
+}
+
+.is-mobile .cfr-find-result {
+  padding: 8px 10px 8px 16px;
+  margin: 4px 0;
+}
+
+.is-mobile .cfr-find-result-excerpt {
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
+
+.is-mobile .cfr-find-result-path {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-mobile .cfr-find-footer {
+  display: none; /* Keyboard shortcuts are hidden on mobile */
+}

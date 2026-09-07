@@ -18,6 +18,7 @@ import { renderExcerpt, renderHighlighted } from '../excerpts'
 import { ResultList } from './result-list'
 import { InFileSearchModal } from './infile-modal'
 import { jumpToMatch } from './jump'
+import { getDisplayName } from '../../display-name-helper'
 
 const DEBOUNCE_MS = 80
 const RESULT_LIMIT = 50
@@ -206,12 +207,14 @@ export class VaultSearchModal extends Modal {
     const typeIcon = title.createSpan({ cls: 'cfr-find-result-icon' })
     setIcon(typeIcon, iconForExtension(file?.extension ?? 'md'))
     const titleText = title.createSpan()
-    const basename = file?.basename ?? hit.path
+    const displayName = file
+    ? getDisplayName(this.plugin, file)
+    : hit.path;
     renderHighlighted(
       titleText,
-      basename,
+      displayName,
       findTermOffsets(
-        basename,
+        displayName,
         significantTerms(
           hit.terms,
           tokenize(this.inputEl.value, this.plugin.settings.splitCamelCase),
