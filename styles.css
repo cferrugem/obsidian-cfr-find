@@ -1,12 +1,21 @@
 /* CFR Find. Flat command-palette look, proportions after the cmdk Vercel theme. */
 
+/* Hairline shared by the modal edge, the input rule and the footer rule.
+   Built on Obsidian's own border token so it tracks light and dark themes. */
+.cfr-find-modal {
+  --cfr-find-hairline: color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+  /* Content inset: rows sit at 8px modal padding + 16px row padding. The input
+     and footer bleed to the edge and re-add the same 24px so everything aligns. */
+  --cfr-find-inset: 24px;
+}
+
 /* ---- Modal ---- */
 .cfr-find-modal {
   max-width: 640px;
   width: 90vw;
   padding: 0 8px 8px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--text-normal) 3%, transparent);
+  border: 1px solid var(--cfr-find-hairline);
   background: var(--background-primary);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -23,7 +32,8 @@
   padding: 0;
 }
 
-body:not(.is-mobile) .cfr-find-modal .modal-header-button {
+/* Esc closes on desktop, so the X only earns its space on touch. */
+body:not(.is-mobile) .cfr-find-modal .modal-close-button {
   display: none;
 }
 
@@ -32,11 +42,11 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 60px;
-  margin: 0 0 8px;
-  padding: 0 12px;
+  min-height: 60px;
+  margin: 0 -8px 8px;
+  padding: 0 var(--cfr-find-inset);
   border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 3%, transparent);
+  border-bottom: 1px solid var(--cfr-find-hairline);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -45,12 +55,13 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
 }
 
 .cfr-find-input-row:focus-within {
-  border-color: color-mix(in srgb, var(--text-normal) 3%, transparent);
+  border-color: var(--cfr-find-hairline);
   background: transparent;
   transform: none;
   box-shadow: none;
 }
 
+/* The plugin's own mark, muted to sit inside the flat palette. */
 .cfr-find-input-icon {
   display: flex;
   align-items: center;
@@ -59,17 +70,8 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
 }
 
 .cfr-find-input-icon svg {
-  display: none;
-}
-
-/* Lucide "search", masked so it follows currentColor */
-.cfr-find-input-icon::before {
-  content: "";
   width: 20px;
   height: 20px;
-  background-color: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .cfr-find-modal input.cfr-find-input[type="text"],
@@ -79,13 +81,13 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
 .cfr-find-modal input.cfr-find-input[type="text"]:active {
   flex: 1;
   width: 100%;
-  height: 100%;
+  min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 0;
-  font-size: 18px;
+  font-size: var(--font-ui-large);
   font-weight: 400;
-  line-height: 1;
+  line-height: 1.2;
   color: var(--text-normal);
   background: transparent;
   border: none;
@@ -121,9 +123,9 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   margin-top: 4px;
 }
 
+/* The accent bar is gone; the file-type icon stays, it carries information. */
 .cfr-find-result::before,
-.cfr-find-result.is-selected::before,
-.cfr-find-result-icon {
+.cfr-find-result.is-selected::before {
   display: none;
 }
 
@@ -137,18 +139,30 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
 .cfr-find-result-title {
   display: flex;
   align-items: center;
-  gap: 0;
-  font-size: 15px;
+  gap: 8px;
+  font-size: var(--font-ui-medium);
   font-weight: 500;
-  line-height: 22px;
+  line-height: 1.45;
   color: var(--text-normal);
+}
+
+.cfr-find-result-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.cfr-find-result-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .cfr-find-result-path {
   margin-top: 2px;
   padding-left: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -158,13 +172,15 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
 .cfr-find-result-excerpt {
   margin-top: 6px;
   padding-left: 0;
-  min-height: 0;
-  font-size: 13px;
-  line-height: 20px;
+  /* Excerpts stream in lazily; reserve one line so rows don't jump on scroll. */
+  min-height: 1.5em;
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
   color: var(--text-muted);
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -189,13 +205,14 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   gap: 20px;
   height: 44px;
   margin: 8px -8px -8px;
-  padding: 0 16px;
-  border-top: 1px solid color-mix(in srgb, var(--text-normal) 3%, transparent);
+  padding: 0 var(--cfr-find-inset);
+  border-top: 1px solid var(--cfr-find-hairline);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--font-ui-smaller);
   color: var(--text-muted);
 }
 
+/* DOM order is <kbd> then label; row-reverse puts the label first. */
 .cfr-find-hint {
   display: inline-flex;
   flex-direction: row-reverse;
@@ -207,7 +224,7 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 20px;
+  min-height: 20px;
   min-width: 20px;
   padding: 0 6px;
   border: none;
@@ -216,7 +233,7 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   background: var(--background-modifier-hover);
   color: var(--text-muted);
   font-family: var(--font-interface);
-  font-size: 12px;
+  font-size: var(--font-ui-smaller);
 }
 
 /* ---- In-file mode ---- */
@@ -231,7 +248,7 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   text-align: right;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--font-ui-smaller);
 }
 
 .cfr-find-line-text {
@@ -245,11 +262,11 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  padding: 0;
+  min-height: 48px;
+  padding: 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-ui-small);
 }
 
 /* ---- Settings tab ---- */
@@ -286,9 +303,11 @@ body:not(.is-mobile) .cfr-find-modal .modal-header-button {
   box-shadow: none;
 }
 
+/* Obsidian keeps the close button at top-right on touch, so reserve there. */
 .is-mobile .cfr-find-input-row {
-  height: 52px;
-  padding: 0 12px 0 40px;
+  min-height: 52px;
+  margin: 0 -8px 8px;
+  padding: 0 48px 0 20px;
 }
 
 .is-mobile .cfr-find-results {
