@@ -99,8 +99,22 @@ export class VaultSearchModal extends Modal {
       e.preventDefault()
       this.list.move(-1)
     })
-    this.scope.register(['Ctrl'], 'j', () => this.list.move(1))
-    this.scope.register(['Ctrl'], 'k', () => this.list.move(-1))
+    this.scope.register(['Ctrl'], 'j', e => {
+      e.preventDefault()
+      this.list.move(1)
+    })
+    this.scope.register(['Ctrl'], 'k', e => {
+      e.preventDefault()
+      this.list.move(-1)
+    })
+    this.scope.register(['Ctrl'], 'n', e => {
+      e.preventDefault()
+      this.list.move(1)
+    })
+    this.scope.register(['Ctrl'], 'p', e => {
+      e.preventDefault()
+      this.list.move(-1)
+    })
     this.scope.register([], 'Enter', e => {
       e.preventDefault()
       this.list.chooseSelected(e)
