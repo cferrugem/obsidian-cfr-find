@@ -2,9 +2,15 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian'
 import { FuzzyOptions, SCHEMA_VERSION } from './shared/protocol'
 import type CfrFindPlugin from './main'
 
+export enum DisplayNameMode {
+  Title = 'title',
+  Smart = 'smart',
+}
+
 export interface CfrFindSettings {
   extraFileTypes: string[]
   respectExcluded: boolean
+  displayNameMode: DisplayNameMode
   /** 0 = exact … 0.3 = aggressive. */
   fuzziness: number
   /** Words shorter than this are never fuzzy-matched (guards precision). */
@@ -22,6 +28,7 @@ export interface CfrFindSettings {
 export const DEFAULT_SETTINGS: CfrFindSettings = {
   extraFileTypes: [],
   respectExcluded: true,
+  displayNameMode: DisplayNameMode.Smart,
   fuzziness: 0.1,
   minFuzzyLength: 4,
   prefixMinLength: 2,
@@ -78,6 +85,20 @@ export class CfrFindSettingTab extends PluginSettingTab {
     containerEl.empty()
 
     // General settings stay at the top without a heading (Obsidian guideline).
+    new Setting(containerEl)
+    .setName("Display name")
+    .setDesc("Choose how note names are displayed in search results.")
+    .addDropdown(dropdown =>
+    dropdown
+    .addOption(DisplayNameMode.Title, "Title")
+    .addOption(DisplayNameMode.Smart, "Smart Alias")
+    .setValue(this.plugin.settings.displayNameMode)
+    .onChange(async value => {
+      this.plugin.settings.displayNameMode = value as DisplayNameMode;
+      await this.plugin.saveSettings();
+    })
+    );
+
     new Setting(containerEl)
       .setName('Keyboard shortcut')
       .setDesc(
